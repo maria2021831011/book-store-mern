@@ -8,7 +8,7 @@ function App() {
       <header>
         <Navbar />
       </header>
-      <main className="min-h-screen max-w-2xl mx-auto px-4 py-6 text-primary">
+      <main className="min-h-screen max-w-2xl mx-auto px-4 py-6 font-primary">
         <Outlet />
       </main>
       <footer>
