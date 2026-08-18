@@ -6,9 +6,14 @@ const crypto = require("crypto");
 const AppError = require("../utils/AppError");
 const { Order, Cart, User, Book } = require("../models");
 const couponService = require("./couponService");
+const notificationService = require("./notificationService");
 const { getPagination, buildPageMeta } = require("../utils/paginate");
 
 const CANCELLABLE = ["pending", "processing"];
+
+const SHIPPING_RATE = 3.99;
+const FREE_SHIPPING_THRESHOLD = 50;
+const TAX_RATE = 0.05;
 
 function generateOrderNumber() {
   const stamp = new Date();
@@ -78,9 +83,10 @@ async function createOrder(userId, payload = {}) {
     await couponService.trackUsage(cart.coupon.code);
   }
 
-  const shipping = 0;
-  const tax = 0;
-  const total = Math.max(0, subtotal - discount) + shipping + tax;
+  const afterDiscount = subtotal - discount;
+  const shipping = afterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_RATE;
+  const tax = Math.round(afterDiscount * TAX_RATE * 100) / 100;
+  const total = Math.max(0, afterDiscount) + shipping + tax;
 
   const shippingAddress = await resolveShippingAddress(userId, payload);
 
@@ -112,6 +118,10 @@ async function createOrder(userId, payload = {}) {
   cart.items = [];
   cart.coupon = undefined;
   await cart.save();
+
+  const user = await User.findById(userId).select("name email");
+  order.user = user;
+  notificationService.sendOrderConfirmation(order);
 
   return order;
 }
@@ -171,12 +181,30 @@ async function listAll(query = {}) {
 async function updateStatus(orderId, patch) {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
+  const oldStatus = order.status;
   const allowed = ["status", "paymentStatus", "trackingNumber"];
   allowed.forEach((field) => {
     if (patch[field] !== undefined) order[field] = patch[field];
   });
   await order.save();
+  if (patch.status && patch.status !== oldStatus) {
+    const user = await User.findById(order.user).select("name email");
+    order.user = user;
+    notificationService.sendOrderStatusUpdate(order, oldStatus);
+  }
   return order;
+}
+
+function escapeCsvField(value) {
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function escapeCsvRow(row) {
+  return row.map(escapeCsvField).join(",");
 }
 
 function invoiceRows(order) {
@@ -203,7 +231,7 @@ function invoiceRows(order) {
     ["Tax", order.tax.toFixed(2)],
     ["Total", order.total.toFixed(2)],
   ];
-  return rows.map((row) => row.join(",")).join("\n");
+  return rows.map((row) => (row.length === 0 ? "" : escapeCsvRow(row))).join("\n");
 }
 
 module.exports = {
