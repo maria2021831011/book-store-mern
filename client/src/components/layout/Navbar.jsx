@@ -6,7 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   FaBars,
+  FaBell,
   FaBook,
+  FaChartLine,
   FaShieldAlt,
   FaShoppingCart,
   FaSignOutAlt,
@@ -16,6 +18,7 @@ import {
 import toast from "react-hot-toast";
 import useAuth from "../../hooks/useAuth";
 import { useCartContext } from "../../context/CartContext";
+import NotificationBell from "../notifications/NotificationBell";
 import Button from "../ui/Button";
 
 const navLink = ({ isActive }) =>
@@ -77,6 +80,8 @@ export default function Navbar() {
         </nav>
 
         <div className="navbar__actions">
+          {isAuthenticated && <NotificationBell />}
+
           {isAuthenticated && (
             <Link
               to="/cart"
@@ -123,6 +128,22 @@ export default function Navbar() {
                     role="menuitem"
                   >
                     <FaUser /> <span className="text-ink-400" />&nbsp;My profile
+                  </Link>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="user-menu__item"
+                    role="menuitem"
+                  >
+                    <FaChartLine className="text-ink-400" /> Dashboard
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    onClick={() => setMenuOpen(false)}
+                    className="user-menu__item"
+                    role="menuitem"
+                  >
+                    <FaBell className="text-ink-400" /> Notifications
                   </Link>
                   {isAdmin && (
                     <Link

@@ -55,7 +55,7 @@ const orderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+      enum: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"],
       default: "pending",
       index: true,
     },
@@ -64,7 +64,16 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
-    paymentMethod: { type: String, trim: true, default: "cash_on_delivery" },
+    paymentMethod: {
+      type: String,
+      enum: ["cash_on_delivery", "card", "bkash"],
+      default: "cash_on_delivery",
+    },
+    stripeSessionId: { type: String, trim: true, index: true },
+    stripePaymentIntentId: { type: String, trim: true },
+    paidAt: { type: Date },
+    refundedAt: { type: Date },
+    refundReason: { type: String, trim: true, maxlength: 500 },
 
     shippingAddress: { type: addressSnapshotSchema, required: true },
     trackingNumber: { type: String, trim: true },

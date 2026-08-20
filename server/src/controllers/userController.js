@@ -57,6 +57,15 @@ const removeWishlistItem = catchAsync(async (req, res) => {
   res.json({ wishlist: await wishlistService.remove(req.user.id, req.params.bookId) });
 });
 
+const moveWishlistToCart = catchAsync(async (req, res) => {
+  const wishlistService = require("../services/wishlistService");
+  res.json(await wishlistService.moveToCart(req.user.id, req.params.bookId));
+});
+
+const getDashboard = catchAsync(async (req, res) => {
+  res.json(await userService.getDashboard(req.user.id));
+});
+
 module.exports = {
   getMe,
   updateMe,
@@ -66,7 +75,9 @@ module.exports = {
   updateAddress,
   deleteAddress,
   getHistory,
+  getDashboard,
   getWishlist,
   addWishlistItem,
   removeWishlistItem,
+  moveWishlistToCart,
 };

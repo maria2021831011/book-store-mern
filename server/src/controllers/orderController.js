@@ -5,8 +5,8 @@ const catchAsync = require("../utils/catchAsync");
 const orderService = require("../services/orderService");
 
 const createOrder = catchAsync(async (req, res) => {
-  const order = await orderService.createOrder(req.user.id, req.body);
-  res.status(201).json({ order });
+  const { order, isOnlinePayment } = await orderService.createOrder(req.user.id, req.body);
+  res.status(201).json({ order, isOnlinePayment });
 });
 
 const listOrders = catchAsync(async (req, res) => {
@@ -17,8 +17,16 @@ const getOrder = catchAsync(async (req, res) => {
   res.json({ order: await orderService.getOrder(req.user.id, req.params.id) });
 });
 
+const getTracking = catchAsync(async (req, res) => {
+  res.json({ tracking: await orderService.getTracking(req.user.id, req.params.id) });
+});
+
 const cancelOrder = catchAsync(async (req, res) => {
   res.json({ order: await orderService.cancelOrder(req.user.id, req.params.id, req.body.reason) });
+});
+
+const reorder = catchAsync(async (req, res) => {
+  res.json(await orderService.reorder(req.user.id, req.params.id));
 });
 
 const downloadInvoice = catchAsync(async (req, res) => {
@@ -29,4 +37,4 @@ const downloadInvoice = catchAsync(async (req, res) => {
   res.send(csv);
 });
 
-module.exports = { createOrder, listOrders, getOrder, cancelOrder, downloadInvoice };
+module.exports = { createOrder, listOrders, getOrder, getTracking, cancelOrder, reorder, downloadInvoice };
