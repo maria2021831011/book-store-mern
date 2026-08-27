@@ -1,7 +1,7 @@
 /**
  * validators/bookValidators.js — express-validator chains for book routes.
  */
-const { body, query } = require("express-validator");
+import { body, query } from "express-validator";
 
 const title = body("title")
   .trim()
@@ -68,8 +68,14 @@ const inStock = query("inStock").optional().isIn(["true", "false"]).withMessage(
 
 const sort = query("sort")
   .optional()
-  .isIn(["relevance", "newest", "rating", "popular", "price_asc", "price_desc", "title"])
-  .withMessage("Invalid sort option");
+  .custom((value) => {
+    // Accept either plain keys ("rating", "newest") or Mongo-style "-key"
+    // so the front-end can pass either form interchangeably.
+    const allowed = ["relevance", "newest", "rating", "popular", "price_asc", "price_desc", "title"];
+    const normalized = String(value).replace(/^-/, "");
+    if (allowed.includes(normalized)) return true;
+    throw new Error("Invalid sort option");
+  });
 
 const createBookValidators = [
   title,
@@ -117,7 +123,7 @@ const updateBookValidators = [
 
 const listBooksValidators = [page, limit, q, minPrice, maxPrice, inStock, sort];
 
-module.exports = {
+export {
   createBookValidators,
   updateBookValidators,
   listBooksValidators,

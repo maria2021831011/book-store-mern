@@ -1,38 +1,74 @@
 /**
  * app.js — Express app composition
  */
-const trendingRoutes =
-  require("./routes/trendingRoutes");
-const userPreferenceRoutes =
-  require("./routes/userPreferenceRoutes");
+import trendingRoutes from "./routes/trendingRoutes.js";
+import userPreferenceRoutes from "./routes/userPreferenceRoutes.js";
+import personalizedRecommendationRoutes from "./routes/personalizedRecommendationRoutes.js";
 
-const personalizedRecommendationRoutes =
-  require("./routes/personalizedRecommendationRoutes");
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
+import path from "path";
 
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const compression = require("compression");
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-const path = require("path");
+import env from "./config/env.js";
+import apiRouter from "./routes/index.js";
+import semanticRoutes from "./routes/semanticRoutes.js";
+import similarBookRoutes from "./routes/similarBookRoutes.js";
+import * as paymentController from "./controllers/paymentController.js";
 
-const env = require("./config/env");
-const apiRouter = require("./routes");
-const semanticRoutes = require("./routes/semanticRoutes");
-const similarBookRoutes = require("./routes/similarBookRoutes");
-const paymentController = require("./controllers/paymentController");
-
-const errorHandler = require("./middleware/errorHandler");
-const notFound = require("./middleware/notFound");
+import errorHandler from "./middleware/errorHandler.js";
+import notFound from "./middleware/notFound.js";
 
 const app = express();
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+  })
+);
+
+const allowedOrigins = [
+  env.CLIENT_URL,
+  env.SERVER_URL,
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:4173",
+].filter(Boolean);
+
+// Accept any localhost / 127.0.0.1 origin on any port during development.
+// Production builds should set CLIENT_URL explicitly via env.
+const isLocalDevOrigin = (origin) => {
+  if (!origin) return false;
+  try {
+    const u = new URL(origin);
+    if (env.NODE_ENV === "production") return false;
+    return (
+      (u.hostname === "localhost" || u.hostname === "127.0.0.1") &&
+      /^https?:$/.test(u.protocol)
+    );
+  } catch {
+    return false;
+  }
+};
 
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin(origin, callback) {
+      // Same-origin / curl / server-to-server (no Origin header) is fine.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (isLocalDevOrigin(origin)) return callback(null, true);
+      // Reject — express will respond without CORS headers so the browser
+      // surfaces a clear CORS error rather than a generic 500.
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
@@ -103,4 +139,4 @@ app.use(
 app.use(notFound);
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

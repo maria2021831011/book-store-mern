@@ -6,27 +6,34 @@ import { Toaster } from "react-hot-toast";
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
-import { ChatbotProvider } from "./context/ChatbotContext.jsx";
 import { SocketProvider } from "./context/SocketContext.jsx";
+import { ThemeProvider } from "./context/ThemeContext.jsx";
 import "./styles/index.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <SocketProvider>
-            <CartProvider>
-              <ChatbotProvider>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <SocketProvider>
+              <CartProvider>
                 <App />
                 <Toaster position="top-right" />
-              </ChatbotProvider>
-            </CartProvider>
-          </SocketProvider>
-        </AuthProvider>
-      </BrowserRouter>
+              </CartProvider>
+            </SocketProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

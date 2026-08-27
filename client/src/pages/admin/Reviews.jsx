@@ -1,14 +1,12 @@
 /**
  * pages/admin/Reviews.jsx — moderate reviews.
  */
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import adminApi from "../../services/adminApi";
 import Button from "../../components/ui/Button";
 import Spinner from "../../components/ui/Spinner";
 import Rating from "../../components/ui/Rating";
-import ConfirmModal from "../../components/ui/ConfirmModal";
 import { FaTrash } from "react-icons/fa";
 import { formatDate } from "../../utils/format";
 
@@ -16,7 +14,6 @@ const getId = (item) => item?._id || item?.id;
 
 export default function Reviews() {
   const queryClient = useQueryClient();
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "reviews"],
@@ -46,7 +43,9 @@ export default function Reviews() {
   });
 
   const handleDelete = (review) => {
-    setDeleteTarget(review);
+    if (window.confirm("Delete this review? This cannot be undone.")) {
+      deleteMutation.mutate(getId(review));
+    }
   };
 
   const reviews = data?.reviews || [];
@@ -59,7 +58,7 @@ export default function Reviews() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16 text-indigo-600">
+        <div className="flex justify-center py-16 text-brand-600">
           <Spinner className="h-8 w-8" />
         </div>
       ) : reviews.length === 0 ? (
@@ -119,7 +118,7 @@ export default function Reviews() {
                       variant={review.isApproved ? "secondary" : "primary"}
                       size="sm"
                       loading={
-                        updateMutation.isPending &&
+                        updateMutation.isLoading &&
                         updateMutation.variables?.id === getId(review)
                       }
                       onClick={() =>
@@ -139,7 +138,7 @@ export default function Reviews() {
                         variant="danger"
                         size="sm"
                         loading={
-                          deleteMutation.isPending &&
+                          deleteMutation.isLoading &&
                           deleteMutation.variables === getId(review)
                         }
                         onClick={() => handleDelete(review)}
@@ -155,20 +154,6 @@ export default function Reviews() {
           </table>
         </div>
       )}
-
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget) {
-            deleteMutation.mutate(getId(deleteTarget));
-            setDeleteTarget(null);
-          }
-        }}
-        title="Delete review"
-        message="Delete this review? This cannot be undone."
-        loading={deleteMutation.isPending}
-      />
     </div>
   );
 }

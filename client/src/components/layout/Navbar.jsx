@@ -6,19 +6,21 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   FaBars,
-  FaBell,
   FaBook,
-  FaChartLine,
+  FaBrain,
+  FaFire,
+  FaMoon,
   FaShieldAlt,
   FaShoppingCart,
   FaSignOutAlt,
+  FaSun,
   FaTimes,
   FaUser,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import useAuth from "../../hooks/useAuth";
 import { useCartContext } from "../../context/CartContext";
-import NotificationBell from "../notifications/NotificationBell";
+import { useTheme } from "../../context/ThemeContext";
 import Button from "../ui/Button";
 
 const navLink = ({ isActive }) =>
@@ -29,11 +31,16 @@ const drawerLink = ({ isActive }) =>
 
 export default function Navbar() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
-  const { count: cartCount } = useCartContext();
+  const { count: cartCount, ensureLoaded } = useCartContext();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (isAuthenticated) ensureLoaded();
+  }, [isAuthenticated, ensureLoaded]);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -72,6 +79,14 @@ export default function Navbar() {
           <NavLink to="/books" className={navLink}>
             Books
           </NavLink>
+          <NavLink to="/trending" className={navLink}>
+            <FaFire className="text-orange-500" /> Trending
+          </NavLink>
+          <NavLink to="/ai-search" className={navLink}>
+            <FaBrain className="text-brand-500" />
+            <span>AI Search</span>
+            <span className="navbar__pill">NEW</span>
+          </NavLink>
           {isAdmin && (
             <NavLink to="/admin" className={navLink}>
               <FaShieldAlt /> Admin
@@ -80,9 +95,16 @@ export default function Navbar() {
         </nav>
 
         <div className="navbar__actions">
-          {isAuthenticated && <NotificationBell />}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="navbar__link"
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          >
+            {theme === "dark" ? <FaSun /> : <FaMoon />}
+          </button>
 
-          {isAuthenticated && user?.role === "customer" && (
+          {isAuthenticated && !isAdmin && (
             <Link
               to="/cart"
               className="navbar__link relative"
@@ -128,22 +150,6 @@ export default function Navbar() {
                     role="menuitem"
                   >
                     <FaUser /> <span className="text-ink-400" />&nbsp;My profile
-                  </Link>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setMenuOpen(false)}
-                    className="user-menu__item"
-                    role="menuitem"
-                  >
-                    <FaChartLine className="text-ink-400" /> Dashboard
-                  </Link>
-                  <Link
-                    to="/notifications"
-                    onClick={() => setMenuOpen(false)}
-                    className="user-menu__item"
-                    role="menuitem"
-                  >
-                    <FaBell className="text-ink-400" /> Notifications
                   </Link>
                   {isAdmin && (
                     <Link
@@ -197,17 +203,24 @@ export default function Navbar() {
           <NavLink to="/books" className={drawerLink} onClick={() => setDrawerOpen(false)}>
             Books
           </NavLink>
+          <NavLink to="/trending" className={drawerLink} onClick={() => setDrawerOpen(false)}>
+            Trending
+          </NavLink>
+          <NavLink to="/ai-search" className={drawerLink} onClick={() => setDrawerOpen(false)}>
+            AI Search
+          </NavLink>
           {isAdmin && (
             <NavLink to="/admin" className={drawerLink} onClick={() => setDrawerOpen(false)}>
               Admin
             </NavLink>
           )}
+          <div className="navbar__drawer-sep" />
           {!isAuthenticated && (
             <>
               <Link to="/login" className="navbar__drawer-link" onClick={() => setDrawerOpen(false)}>
                 Log in
               </Link>
-              <Link to="/register" className="navbar__drawer-link" onClick={() => setDrawerOpen(false)}>
+              <Link to="/register" className="navbar__drawer-link navbar__drawer-link--cta" onClick={() => setDrawerOpen(false)}>
                 Sign up
               </Link>
             </>

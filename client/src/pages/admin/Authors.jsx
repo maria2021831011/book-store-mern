@@ -9,7 +9,6 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
-import ConfirmModal from "../../components/ui/ConfirmModal";
 import { FaPlus, FaTrash, FaEdit } from "react-icons/fa";
 
 const EMPTY_FORM = { name: "", bio: "", bornYear: "", country: "" };
@@ -22,7 +21,6 @@ export default function Authors() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "authors"],
@@ -76,7 +74,9 @@ export default function Authors() {
   };
 
   const handleDelete = (author) => {
-    setDeleteTarget(author);
+    if (window.confirm(`Delete author "${author.name}"? This cannot be undone.`)) {
+      deleteMutation.mutate(getId(author));
+    }
   };
 
   const handleSubmit = (e) => {
@@ -111,7 +111,7 @@ export default function Authors() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16 text-indigo-600">
+        <div className="flex justify-center py-16 text-brand-600">
           <Spinner className="h-8 w-8" />
         </div>
       ) : authors.length === 0 ? (
@@ -134,7 +134,7 @@ export default function Authors() {
                 <tr key={getId(author)} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
                         {author.name.charAt(0).toUpperCase()}
                       </span>
                       <div>
@@ -161,7 +161,7 @@ export default function Authors() {
                         variant="danger"
                         size="sm"
                         loading={
-                          deleteMutation.isPending && deleteMutation.variables === getId(author)
+                          deleteMutation.isLoading && deleteMutation.variables === getId(author)
                         }
                         onClick={() => handleDelete(author)}
                         aria-label={`Delete ${author.name}`}
@@ -202,26 +202,12 @@ export default function Authors() {
             <Button variant="ghost" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" loading={saveMutation.isLoading}>
               {editing ? "Save changes" : "Create author"}
             </Button>
           </div>
         </form>
       </Modal>
-
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget) {
-            deleteMutation.mutate(getId(deleteTarget));
-            setDeleteTarget(null);
-          }
-        }}
-        title="Delete author"
-        message={`Delete author "${deleteTarget?.name}"? This cannot be undone.`}
-        loading={deleteMutation.isPending}
-      />
     </div>
   );
 }

@@ -9,7 +9,6 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
-import ConfirmModal from "../../components/ui/ConfirmModal";
 import { FaPlus, FaTrash, FaEdit } from "react-icons/fa";
 import { formatCurrency, formatDate } from "../../utils/format";
 
@@ -80,7 +79,6 @@ export default function Coupons() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "coupons"],
@@ -139,7 +137,9 @@ export default function Coupons() {
   };
 
   const handleDelete = (coupon) => {
-    setDeleteTarget(coupon);
+    if (window.confirm(`Delete coupon "${coupon.code}"? This cannot be undone.`)) {
+      deleteMutation.mutate(getId(coupon));
+    }
   };
 
   const handleSubmit = (e) => {
@@ -173,7 +173,7 @@ export default function Coupons() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16 text-indigo-600">
+        <div className="flex justify-center py-16 text-brand-600">
           <Spinner className="h-8 w-8" />
         </div>
       ) : coupons.length === 0 ? (
@@ -224,7 +224,7 @@ export default function Coupons() {
                         variant="ghost"
                         size="sm"
                         loading={
-                          toggleMutation.isPending &&
+                          toggleMutation.isLoading &&
                           toggleMutation.variables?.id === getId(coupon)
                         }
                         onClick={() =>
@@ -252,7 +252,7 @@ export default function Coupons() {
                         variant="danger"
                         size="sm"
                         loading={
-                          deleteMutation.isPending && deleteMutation.variables === getId(coupon)
+                          deleteMutation.isLoading && deleteMutation.variables === getId(coupon)
                         }
                         onClick={() => handleDelete(coupon)}
                         aria-label={`Delete ${coupon.code}`}
@@ -282,7 +282,7 @@ export default function Coupons() {
               <select
                 value={form.type}
                 onChange={set("type")}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               >
                 <option value="percent">Percent (%)</option>
                 <option value="fixed">Fixed ($)</option>
@@ -336,7 +336,7 @@ export default function Coupons() {
               type="checkbox"
               checked={form.isActive}
               onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
             />
             Active
           </label>
@@ -347,26 +347,12 @@ export default function Coupons() {
             <Button variant="ghost" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" loading={saveMutation.isLoading}>
               {editing ? "Save changes" : "Create coupon"}
             </Button>
           </div>
         </form>
       </Modal>
-
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget) {
-            deleteMutation.mutate(getId(deleteTarget));
-            setDeleteTarget(null);
-          }
-        }}
-        title="Delete coupon"
-        message={`Delete coupon "${deleteTarget?.code}"? This cannot be undone.`}
-        loading={deleteMutation.isPending}
-      />
     </div>
   );
 }

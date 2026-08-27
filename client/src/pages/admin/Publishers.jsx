@@ -9,7 +9,6 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
-import ConfirmModal from "../../components/ui/ConfirmModal";
 import { FaPlus, FaTrash, FaEdit } from "react-icons/fa";
 
 const EMPTY_FORM = { name: "", country: "", website: "" };
@@ -22,7 +21,6 @@ export default function Publishers() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "publishers"],
@@ -75,7 +73,9 @@ export default function Publishers() {
   };
 
   const handleDelete = (publisher) => {
-    setDeleteTarget(publisher);
+    if (window.confirm(`Delete publisher "${publisher.name}"? This cannot be undone.`)) {
+      deleteMutation.mutate(getId(publisher));
+    }
   };
 
   const handleSubmit = (e) => {
@@ -109,7 +109,7 @@ export default function Publishers() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16 text-indigo-600">
+        <div className="flex justify-center py-16 text-brand-600">
           <Spinner className="h-8 w-8" />
         </div>
       ) : publishers.length === 0 ? (
@@ -138,7 +138,7 @@ export default function Publishers() {
                         href={publisher.website}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-indigo-600 hover:underline"
+                        className="text-brand-600 hover:underline"
                       >
                         {publisher.website}
                       </a>
@@ -160,7 +160,7 @@ export default function Publishers() {
                         variant="danger"
                         size="sm"
                         loading={
-                          deleteMutation.isPending &&
+                          deleteMutation.isLoading &&
                           deleteMutation.variables === getId(publisher)
                         }
                         onClick={() => handleDelete(publisher)}
@@ -195,26 +195,12 @@ export default function Publishers() {
             <Button variant="ghost" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={saveMutation.isPending}>
+            <Button type="submit" loading={saveMutation.isLoading}>
               {editing ? "Save changes" : "Create publisher"}
             </Button>
           </div>
         </form>
       </Modal>
-
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget) {
-            deleteMutation.mutate(getId(deleteTarget));
-            setDeleteTarget(null);
-          }
-        }}
-        title="Delete publisher"
-        message={`Delete publisher "${deleteTarget?.name}"? This cannot be undone.`}
-        loading={deleteMutation.isPending}
-      />
     </div>
   );
 }

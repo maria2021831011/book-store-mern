@@ -2,7 +2,7 @@
  * config/env.js — Single source of truth for environment variables.
  * Validates required vars on boot and exposes a typed object.
  */
-require("dotenv").config();
+import "dotenv/config";
 
 const required = ["MONGO_URI", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
 for (const key of required) {
@@ -11,7 +11,7 @@ for (const key of required) {
   }
 }
 
-module.exports = {
+const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: Number(process.env.PORT) || 5000,
   CLIENT_URL: process.env.CLIENT_URL,
@@ -50,13 +50,12 @@ module.exports = {
   MAIL_PASS: process.env.MAIL_PASS || "",
   MAIL_FROM: process.env.MAIL_FROM || "BookVerse <no-reply@example.com>",
 
-  LOW_STOCK_THRESHOLD: Number(process.env.LOW_STOCK_THRESHOLD) || 5,
-
-  // Seeded by scripts/seedAdmin.js — no insecure defaults.
-  ADMIN_EMAIL: process.env.ADMIN_EMAIL,
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || "admin@bookstore.com",
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "Admin@12345",
 
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 };
+
+export default env;

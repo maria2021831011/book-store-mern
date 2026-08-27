@@ -5,16 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import adminApi from "../../services/adminApi";
 import Spinner from "../../components/ui/Spinner";
-import { FaUsers, FaBook, FaClipboardList, FaDollarSign, FaHourglassHalf, FaUserCheck, FaListAlt, FaUserEdit, FaBuilding } from "react-icons/fa";
+import { FaUsers, FaBook, FaClipboardList, FaDollarSign, FaHourglassHalf, FaUserCheck } from "react-icons/fa";
 import { formatNumber, formatCurrency } from "../../utils/format";
 
 const cards = [
   { key: "users", label: "Total users", icon: FaUsers },
   { key: "activeUsers", label: "Active users", icon: FaUserCheck },
   { key: "books", label: "Books", icon: FaBook },
-  { key: "categories", label: "Categories", icon: FaListAlt },
-  { key: "authors", label: "Authors", icon: FaUserEdit },
-  { key: "publishers", label: "Publishers", icon: FaBuilding },
   { key: "orders", label: "Orders", icon: FaClipboardList },
   { key: "pendingOrders", label: "Pending orders", icon: FaHourglassHalf },
 ];
@@ -27,7 +24,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center text-indigo-600">
+      <div className="flex min-h-[50vh] items-center justify-center text-brand-600">
         <Spinner className="h-8 w-8" />
       </div>
     );
@@ -54,7 +51,7 @@ export default function Dashboard() {
         <p className="text-sm text-slate-500">Overview of your bookstore.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(({ key, label, icon: Icon }) => (
           <div key={key} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
@@ -64,7 +61,7 @@ export default function Dashboard() {
                   {stats[key] === null || stats[key] === undefined ? "—" : formatNumber(stats[key])}
                 </p>
               </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                 <Icon />
               </span>
             </div>
@@ -89,7 +86,7 @@ export default function Dashboard() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Recent signups</h2>
-          <Link to="/admin/users" className="text-sm font-medium text-indigo-600 hover:underline">
+          <Link to="/admin/users" className="text-sm font-medium text-brand-600 hover:underline">
             View all users
           </Link>
         </div>
