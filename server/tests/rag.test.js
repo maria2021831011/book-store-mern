@@ -25,6 +25,15 @@ const {
   findSimilarBooks,
   cosineSimilarity: cosineSimilaritySimilar,
 } = require("../src/services/similarBookService");
+const {
+  clearCache,
+  warmCache,
+  getCachedBooks,
+} = require("../src/services/embeddingCatalogService");
+
+beforeEach(() => {
+  clearCache();
+});
 
 describe("cosineSimilarity", () => {
   it("returns 1 for identical vectors", () => {
@@ -56,13 +65,16 @@ describe("semanticSearch", () => {
 
   it("ranks by similarity, strips embeddings, and applies filters", async () => {
     const books = [
-      { _id: "b2", title: "Love Letters", embedding: [0, 1] },
-      { _id: "b1", title: "The Martian", embedding: [1, 0] },
-      { _id: "b3", title: "Orbit", embedding: [0.7071, 0.7071] },
+      { _id: "b2", title: "Love Letters", categories: ["Romance"], price: 10, embedding: [0, 1] },
+      { _id: "b1", title: "The Martian", categories: ["Sci-Fi"], price: 20, embedding: [1, 0] },
+      { _id: "b3", title: "Orbit", categories: ["Sci-Fi"], price: 30, embedding: [0.7071, 0.7071] },
     ];
     const lean = jest.fn().mockResolvedValue(books);
     const select = jest.fn(() => ({ lean }));
     Book.find.mockReturnValue({ select });
+
+    // Warm the shared catalog through the same DB mock the service uses.
+    await warmCache();
 
     const results = await semanticSearch({
       query: "space adventure",
@@ -72,11 +84,9 @@ describe("semanticSearch", () => {
       maxPrice: 50,
     });
 
-    // Mongo filter combines embedding presence with the provided facets
+    // The catalog is fetched once; facet filtering happens in the app layer.
     expect(Book.find).toHaveBeenCalledWith({
       embedding: { $exists: true, $ne: [] },
-      categories: "Sci-Fi",
-      price: { $gte: 5, $lte: 50 },
     });
 
     expect(results).toHaveLength(2);
@@ -84,6 +94,33 @@ describe("semanticSearch", () => {
     expect(results[1].title).toBe("Orbit"); // sim ≈ 0.7071
     expect(results[0].similarity).toBe(1);
     results.forEach((r) => expect(r.embedding).toBeUndefined());
+  });
+});
+
+describe("embeddingCatalog", () => {
+  it("never blocks a request while the catalog is loading", async () => {
+    // The database transfer is slow / unresolved.
+    let resolveLoad;
+    const pending = new Promise((res) => {
+      resolveLoad = res;
+    });
+    Book.find.mockReturnValue({
+      select: jest.fn(() => ({ lean: jest.fn(() => pending) })),
+    });
+
+    const start = Date.now();
+    const first = await getCachedBooks();
+
+    // Did not wait on the database transfer.
+    expect(Date.now() - start).toBeLessThan(500);
+    expect(first).toEqual([]);
+
+    resolveLoad([{ _id: "b1", title: "A", embedding: [1, 0] }]);
+    await pending;
+    await new Promise((r) => setTimeout(r, 0));
+
+    const second = await getCachedBooks();
+    expect(second).toHaveLength(1);
   });
 });
 
@@ -115,19 +152,69 @@ describe("findSimilarBooks", () => {
       { _id: "b9", title: "Unrelated", embedding: [0, 1] },
       { _id: "b2", title: "Very Similar", embedding: [0.98, 0.199] },
     ];
+    // The full catalog (embeddings included) is loaded once into the shared
+    // cache; ranking and filtering happen in the app layer.
     const lean = jest.fn().mockResolvedValue(candidates);
     const select = jest.fn(() => ({ lean }));
     Book.find.mockReturnValue({ select });
 
+    // Warm the shared catalog through the same DB mock the service uses.
+    await warmCache();
+
     const results = await findSimilarBooks({ bookId: "b1", limit: 100 });
 
-    // Source excluded from candidate pool
-    expect(Book.find).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: { $ne: "b1" }, isActive: true })
-    );
+    // The source book is excluded from the candidate pool
+    expect(Book.findById).toHaveBeenCalledWith("b1");
+    expect(Book.find).toHaveBeenCalledWith({
+      embedding: { $exists: true, $ne: [] },
+    });
     // limit clamped to 50
     expect(results.length).toBeLessThanOrEqual(50);
     expect(results[0].title).toBe("Very Similar");
     results.forEach((r) => expect(r.embedding).toBeUndefined());
+  });
+
+  it("serves fast category-based picks while the catalog is still loading", async () => {
+    findByIdReturns({
+      _id: "b1",
+      title: "Source",
+      categories: ["Fantasy"],
+      embedding: [1, 0],
+    });
+
+    // The catalog load never resolves (cold database)…
+    Book.find.mockReturnValueOnce({
+      select: jest.fn(() => ({ lean: jest.fn(() => new Promise(() => {})) })),
+    });
+
+    // …so the endpoint must fall back to a quick, indexed query.
+    const fallbackBooks = [
+      {
+        _id: "b2",
+        title: "Fallback Sim",
+        categories: ["Fantasy"],
+        averageRating: 4.5,
+        reviewCount: 9,
+        price: 20,
+      },
+    ];
+    Book.find.mockReturnValueOnce({
+      select: jest.fn(() => ({
+        sort: jest.fn(() => ({
+          limit: jest.fn(() => ({
+            lean: jest.fn().mockResolvedValue(fallbackBooks),
+          })),
+        })),
+      })),
+    });
+
+    const results = await findSimilarBooks({ bookId: "b1", limit: 8 });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe("Fallback Sim");
+    // Same-category, active-only candidates, source excluded.
+    expect(Book.find).toHaveBeenLastCalledWith(
+      expect.objectContaining({ _id: { $ne: "b1" }, isActive: true })
+    );
   });
 });

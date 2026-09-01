@@ -11,7 +11,8 @@ import * as couponService from "../services/couponService.js";
 import * as orderService from "../services/orderService.js";
 import * as paymentService from "../services/paymentService.js";
 import * as analyticsService from "../services/analyticsService.js";
-import * as chatbotService from "../services/chatbotService.js";
+import * as adminAssistantService from "../services/adminAssistantService.js";
+import { exportListPdf } from "../services/adminExportService.js";
 
 const getDashboard = catchAsync(async (_req, res) => {
   res.json(await adminService.getDashboard());
@@ -35,8 +36,8 @@ const deleteUser = catchAsync(async (req, res) => {
 });
 
 // ---- Inventory ----
-const listInventory = catchAsync(async (_req, res) => {
-  res.json(await inventoryService.list());
+const listInventory = catchAsync(async (req, res) => {
+  res.json(await inventoryService.list(req.query));
 });
 
 const updateStock = catchAsync(async (req, res) => {
@@ -57,8 +58,8 @@ const deleteReview = catchAsync(async (req, res) => {
 });
 
 // ---- Coupons ----
-const listCoupons = catchAsync(async (_req, res) => {
-  res.json({ coupons: await couponService.listAdmin() });
+const listCoupons = catchAsync(async (req, res) => {
+  res.json(await couponService.listAdmin(req.query));
 });
 
 const createCoupon = catchAsync(async (req, res) => {
@@ -102,7 +103,19 @@ const analyticsRecommendations = catchAsync(async (_req, res) => {
 
 // ---- AI Assistant (admin) ----
 const aiChat = catchAsync(async (req, res) => {
-  res.json(await chatbotService.sendMessage(req.user.id, req.body));
+  res.json(await adminAssistantService.sendAdminMessage(req.user.id, req.body));
+});
+
+const confirmAiAction = catchAsync(async (req, res) => {
+  res.json(await adminAssistantService.confirmAdminAction(req.user.id, req.body.confirmationToken));
+});
+
+// ---- PDF exports ----
+const exportList = catchAsync(async (req, res) => {
+  const pdf = await exportListPdf(req.params.type);
+  res.setHeader("Content-Type", "application/pdf; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="bookverse-${req.params.type}.pdf"`);
+  res.send(pdf);
 });
 
 export {
@@ -127,4 +140,6 @@ export {
   analyticsInventory,
   analyticsRecommendations,
   aiChat,
+  confirmAiAction,
+  exportList,
 };

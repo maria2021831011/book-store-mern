@@ -71,12 +71,16 @@ const orderSchema = new mongoose.Schema(
     },
     stripeSessionId: { type: String, trim: true, index: true },
     stripePaymentIntentId: { type: String, trim: true },
+    bkashPaymentId: { type: String, trim: true, index: true },
+    bkashTrxId: { type: String, trim: true },
     paidAt: { type: Date },
     refundedAt: { type: Date },
     refundReason: { type: String, trim: true, maxlength: 500 },
 
     shippingAddress: { type: addressSnapshotSchema, required: true },
-    trackingNumber: { type: String, trim: true },
+    trackingNumber: { type: String, trim: true, index: { sparse: true, unique: true } },
+    trackingProvider: { type: String, trim: true, maxlength: 50 },
+    shippedAt: { type: Date },
     notes: { type: String, trim: true, maxlength: 1000 },
 
     cancelledAt: { type: Date },

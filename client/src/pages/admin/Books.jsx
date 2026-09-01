@@ -10,6 +10,7 @@ import Input from "../../components/ui/Input";
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
 import ConfirmModal from "../../components/ui/ConfirmModal";
+import ExportPdfButton from "../../components/admin/ExportPdfButton";
 import { FaSearch, FaPlus, FaTrash, FaEdit } from "react-icons/fa";
 import { formatCurrency } from "../../utils/format";
 
@@ -93,7 +94,7 @@ export default function AdminBooks() {
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["admin", "books", { search, page }],
-    queryFn: () => bookApi.list({ q: search || undefined, page, limit: PAGE_SIZE, sort: "newest" }),
+    queryFn: () => bookApi.list({ q: search || undefined, page, limit: PAGE_SIZE, sort: "newest", facet: "false" }),
     keepPreviousData: true,
   });
 
@@ -167,9 +168,12 @@ export default function AdminBooks() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-ink-100">Book management</h1>
           <p className="text-sm text-slate-500 dark:text-ink-500">Create, edit and remove catalog books.</p>
         </div>
-        <Button onClick={openCreate}>
-          <FaPlus /> Add book
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportPdfButton type="books" />
+          <Button onClick={openCreate}>
+            <FaPlus /> Add book
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-md">

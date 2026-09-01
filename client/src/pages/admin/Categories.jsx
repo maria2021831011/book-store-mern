@@ -9,7 +9,9 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
-import { FaPlus, FaTrash, FaEdit } from "react-icons/fa";
+import ConfirmModal from "../../components/ui/ConfirmModal";
+import ExportPdfButton from "../../components/admin/ExportPdfButton";
+import { FaPlus, FaTrash, FaEdit, FaSearch } from "react-icons/fa";
 
 const EMPTY_FORM = { name: "", description: "" };
 
@@ -21,10 +23,14 @@ export default function Categories() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
+  const [pendingToggle, setPendingToggle] = useState(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "categories"],
-    queryFn: () => catalogApi.categories.list(),
+    queryKey: ["admin", "categories", { search, page }],
+    queryFn: () => catalogApi.categories.list({ search, page, limit: 50, all: "true" }),
+    keepPreviousData: true,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin", "categories"] });
@@ -100,6 +106,7 @@ export default function Categories() {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const categories = data?.items || [];
+  const pagination = data?.pagination || { page: 1, pages: 1, total: 0 };
 
   return (
     <div className="space-y-6">
@@ -108,9 +115,25 @@ export default function Categories() {
           <h1 className="text-2xl font-bold text-slate-900">Category management</h1>
           <p className="text-sm text-slate-500">Create, edit and remove catalog categories.</p>
         </div>
-        <Button onClick={openCreate}>
-          <FaPlus /> Add category
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportPdfButton type="categories" />
+          <Button onClick={openCreate}>
+            <FaPlus /> Add category
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative max-w-md">
+        <FaSearch className="pointer-events-none absolute left-3 top-2.5 text-slate-400" />
+        <input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Search categories…"
+          className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+        />
       </div>
 
       {isLoading ? (
@@ -149,12 +172,7 @@ export default function Categories() {
                         toggleMutation.isLoading &&
                         toggleMutation.variables?.id === getId(cat)
                       }
-                      onClick={() =>
-                        toggleMutation.mutate({
-                          id: getId(cat),
-                          isActive: !cat.isActive,
-                        })
-                      }
+                      onClick={() => setPendingToggle({ cat, isActive: !cat.isActive })}
                     >
                       {cat.isActive ? "Active" : "Inactive"}
                     </Button>
@@ -184,6 +202,32 @@ export default function Categories() {
               ))}
             </tbody>
           </table>
+
+          {pagination.pages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm">
+              <span className="text-slate-500">
+                Page {pagination.page} of {pagination.pages} ({pagination.total} categories)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasPrev}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasNext}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -208,6 +252,30 @@ export default function Categories() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        open={!!pendingToggle}
+        onClose={() => setPendingToggle(null)}
+        onConfirm={() => {
+          if (pendingToggle) {
+            toggleMutation.mutate({
+              id: getId(pendingToggle.cat),
+              isActive: pendingToggle.isActive,
+            });
+          }
+          setPendingToggle(null);
+        }}
+        title={pendingToggle?.isActive ? "Activate category" : "Deactivate category"}
+        message={
+          pendingToggle
+            ? `Set category "${pendingToggle.cat.name}" to ${
+                pendingToggle.isActive ? "active" : "inactive"
+              }? Inactive categories are hidden from the store.`
+            : ""
+        }
+        confirmLabel={pendingToggle?.isActive ? "Activate" : "Deactivate"}
+        loading={toggleMutation.isPending}
+      />
     </div>
   );
 }

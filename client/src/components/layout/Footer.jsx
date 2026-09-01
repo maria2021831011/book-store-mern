@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  FaBook,
   FaFacebookF,
   FaInstagram,
   FaShieldAlt,
@@ -38,7 +37,7 @@ export default function Footer() {
         <div className="footer__brand">
           <div className="flex items-center gap-2">
             <span className="navbar__brand-mark">
-              <FaBook />
+              <img src="/favicon.svg" alt="BookVerse logo" className="h-9 w-9 rounded-xl" />
             </span>
             <span className="text-lg font-extrabold text-ink-900">BookVerse</span>
           </div>
@@ -62,7 +61,9 @@ export default function Footer() {
           <div className="mt-3 space-y-2">
             <Link to="/books" className="footer__link">All books</Link>
             <Link to="/trending" className="footer__link">Trending</Link>
-            <Link to="/recommended" className="footer__link">Recommended for you</Link>
+            {!isAdmin && (
+              <Link to="/recommended" className="footer__link">Recommended for you</Link>
+            )}
             <Link to="/ai-search" className="footer__link">AI search</Link>
           </div>
         </div>
@@ -71,8 +72,12 @@ export default function Footer() {
           <h4 className="footer__title">Account</h4>
           <div className="mt-3 space-y-2">
             <Link to="/profile" className="footer__link">My profile</Link>
-            <Link to="/orders" className="footer__link">Orders</Link>
-            <Link to="/cart" className="footer__link">Cart</Link>
+            {!isAdmin && (
+              <Link to="/orders" className="footer__link">Orders</Link>
+            )}
+            {!isAdmin && (
+              <Link to="/cart" className="footer__link">Cart</Link>
+            )}
             {isAdmin && (
               <Link to="/admin" className="footer__link inline-flex items-center gap-1.5">
                 <FaShieldAlt className="text-ink-400" /> Admin
@@ -103,10 +108,10 @@ export default function Footer() {
 
       <div className="footer__bottom">
         <div className="footer__bottom-inner">
-          <p>© {new Date().getFullYear()} BookVerse — MERN + Semantic Recommendations</p>
+          <p>© {new Date().getFullYear()} BookVerse : Way of Life</p>
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center gap-1">
-              Made with <FaHeart className="text-rose-500" /> for readers
+              Made with <FaHeart className="text-rose-500" /> for readers by Nonchalants
             </span>
             <span className="hidden h-1 w-1 rounded-full bg-ink-300 sm:inline-block" />
             <Link to="/privacy" className="hover:text-brand-700">Privacy</Link>

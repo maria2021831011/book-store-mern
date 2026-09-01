@@ -3,17 +3,57 @@
  */
 import AppError from "../utils/AppError.js";
 import { Category, Author, Publisher, Book } from "../models/index.js";
+import { getPagination, buildPageMeta } from "../utils/paginate.js";
 
 const RESOURCES = {
-  categories: { Model: Category, label: "Category" },
-  authors: { Model: Author, label: "Author" },
-  publishers: { Model: Publisher, label: "Publisher" },
+  categories: { Model: Category, label: "Category", searchFields: ["name", "slug", "description"] },
+  authors: { Model: Author, label: "Author", searchFields: ["name", "bio", "country"] },
+  publishers: { Model: Publisher, label: "Publisher", searchFields: ["name", "slug", "country", "website"] },
 };
+
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function buildSearchFilter(fields, term) {
+  if (!term || !fields?.length) return null;
+  const regex = new RegExp(escapeRegex(term.trim()), "i");
+  return { $or: fields.map((f) => ({ [f]: regex })) };
+}
+
+async function listWithPagination(
+  Model,
+  { page = 1, limit = 50, includeInactive = false, searchFields = [], search = "" } = {}
+) {
+  const { skip } = getPagination({ page, limit });
+  const clamped = Math.min(Math.max(Number(limit) || 50, 1), 100);
+
+  const filter = { ...(includeInactive ? {} : { isActive: true }) };
+  const searchFilter = buildSearchFilter(searchFields, search);
+  if (searchFilter) Object.assign(filter, searchFilter);
+
+  const [items, total] = await Promise.all([
+    Model.find(filter).sort({ name: 1 }).skip(skip).limit(clamped).lean(),
+    Model.countDocuments(filter),
+  ]);
+
+  return { items, pagination: buildPageMeta(total, Number(page) || 1, clamped) };
+}
 
 function buildService(resource) {
   const { Model, label } = RESOURCES[resource];
 
-  async function list() {
+  async function list(query = {}) {
+    const { searchFields } = RESOURCES[resource];
+    // Search via ?q= or ?search= ; optional pagination via ?page=&limit= .
+    const search = query.search || query.q || "";
+    if (query.page !== undefined || query.limit !== undefined || search) {
+      return listWithPagination(Model, {
+        page: query.page,
+        limit: query.limit,
+        includeInactive: query.all === "true",
+        searchFields,
+        search,
+      });
+    }
     return Model.find({ isActive: true }).sort({ name: 1 });
   }
 

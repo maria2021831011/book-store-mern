@@ -1,36 +1,19 @@
-import Book from "../models/Book.js";
-import { generateEmbedding } from "../ai/embeddings/embeddingService.js";
-
 /**
- * Calculate cosine similarity between two vectors.
+ * services/semanticSearchService.js
+ * Returns books ranked by cosine similarity to the query embedding.
+ *
+ * Performance: previously the full 384-dim embedding of every book was pulled
+ * from the (remote) database on every request — a ~90s transfer for the whole
+ * catalog, which made semantic search effectively unusable. The catalog is now
+ * cached once in memory (see embeddingCatalogService) and the similarity scan
+ * runs entirely in memory (milliseconds) after the first load. The same cache
+ * also powers similar-book lookup, so only one catalog is held in memory.
  */
-const cosineSimilarity = (vectorA, vectorB) => {
-  if (!vectorA || !vectorB) return 0;
-
-  if (vectorA.length !== vectorB.length) {
-    return 0;
-  }
-
-  let dotProduct = 0;
-  let magnitudeA = 0;
-  let magnitudeB = 0;
-
-  for (let i = 0; i < vectorA.length; i++) {
-    dotProduct += vectorA[i] * vectorB[i];
-
-    magnitudeA += vectorA[i] * vectorA[i];
-    magnitudeB += vectorB[i] * vectorB[i];
-  }
-
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    return 0;
-  }
-
-  return (
-    dotProduct /
-    (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB))
-  );
-};
+import { generateEmbedding } from "../ai/embeddings/embeddingService.js";
+import {
+  getCachedBooks,
+  cosineSimilarity,
+} from "./embeddingCatalogService.js";
 
 /**
  * Perform semantic search.
@@ -47,48 +30,26 @@ const semanticSearch = async ({
   }
 
   const queryEmbedding = await generateEmbedding(query);
+  const books = await getCachedBooks();
 
-  const mongoFilter = {
-    embedding: { $exists: true, $ne: [] },
-  };
+  const results = [];
 
-  if (category) {
-    mongoFilter.categories = category;
-  }
+  for (const book of books) {
+    if (category && !(book.categories || []).includes(String(category))) {
+      continue;
+    }
 
-  if (minPrice !== undefined) {
-    mongoFilter.price = {
-      ...(mongoFilter.price || {}),
-      $gte: Number(minPrice),
-    };
-  }
+    const price = Number(book.price);
+    if (minPrice !== undefined && price < Number(minPrice)) continue;
+    if (maxPrice !== undefined && price > Number(maxPrice)) continue;
 
-  if (maxPrice !== undefined) {
-    mongoFilter.price = {
-      ...(mongoFilter.price || {}),
-      $lte: Number(maxPrice),
-    };
-  }
-
-  const books = await Book.find(mongoFilter)
-    .select("+embedding")
-    .lean();
-
-  const results = books.map((book) => {
-    const similarity = cosineSimilarity(
-      queryEmbedding,
-      book.embedding
-    );
-
-    return {
+    results.push({
       ...book,
-      similarity,
-    };
-  });
+      similarity: cosineSimilarity(queryEmbedding, book.embedding),
+    });
+  }
 
-  results.sort(
-    (a, b) => b.similarity - a.similarity
-  );
+  results.sort((a, b) => b.similarity - a.similarity);
 
   return results
     .slice(0, Number(limit))

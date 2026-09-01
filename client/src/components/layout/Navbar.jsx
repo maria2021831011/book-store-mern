@@ -6,8 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   FaBars,
-  FaBook,
+  FaBoxOpen,
   FaBrain,
+  FaChartLine,
   FaFire,
   FaMoon,
   FaShieldAlt,
@@ -21,7 +22,9 @@ import toast from "react-hot-toast";
 import useAuth from "../../hooks/useAuth";
 import { useCartContext } from "../../context/CartContext";
 import { useTheme } from "../../context/ThemeContext";
+import NotificationBell from "../notifications/NotificationBell";
 import Button from "../ui/Button";
+import ConfirmModal from "../ui/ConfirmModal";
 
 const navLink = ({ isActive }) =>
   `navbar__link${isActive ? " is-active" : ""}`;
@@ -36,6 +39,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -54,9 +58,14 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
-  const handleLogout = async () => {
+  const confirmLogout = () => {
     setMenuOpen(false);
     setDrawerOpen(false);
+    setLogoutOpen(true);
+  };
+
+  const handleLogout = async () => {
+    setLogoutOpen(false);
     await logout();
     toast.success("Logged out");
     navigate("/");
@@ -67,7 +76,7 @@ export default function Navbar() {
       <div className="navbar__inner">
         <Link to="/" className="navbar__brand" onClick={() => setDrawerOpen(false)}>
           <span className="navbar__brand-mark">
-            <FaBook />
+            <img src="/favicon.svg" alt="BookVerse logo" className="h-9 w-9 rounded-xl" />
           </span>
           <span>BookVerse</span>
         </Link>
@@ -103,6 +112,8 @@ export default function Navbar() {
           >
             {theme === "dark" ? <FaSun /> : <FaMoon />}
           </button>
+
+          {isAuthenticated && <NotificationBell />}
 
           {isAuthenticated && !isAdmin && (
             <Link
@@ -143,14 +154,16 @@ export default function Navbar() {
                     <p className="truncate text-xs text-ink-500">{user.email}</p>
                     <span className="user-menu__role">{user.role}</span>
                   </div>
-                  <Link
-                    to="/profile"
-                    onClick={() => setMenuOpen(false)}
-                    className="user-menu__item"
-                    role="menuitem"
-                  >
-                    <FaUser /> <span className="text-ink-400" />&nbsp;My profile
-                  </Link>
+                  {!isAdmin && (
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="user-menu__item"
+                      role="menuitem"
+                    >
+                      <FaChartLine className="text-ink-400" /> &nbsp;My dashboard
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -161,9 +174,27 @@ export default function Navbar() {
                       <FaShieldAlt className="text-ink-400" /> Admin panel
                     </Link>
                   )}
+                  {!isAdmin && (
+                    <Link
+                      to="/orders"
+                      onClick={() => setMenuOpen(false)}
+                      className="user-menu__item"
+                      role="menuitem"
+                    >
+                      <FaBoxOpen className="text-ink-400" /> &nbsp;My orders
+                    </Link>
+                  )}
+                  <Link
+                    to="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="user-menu__item"
+                    role="menuitem"
+                  >
+                    <FaUser /> <span className="text-ink-400" />&nbsp;My profile
+                  </Link>
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={confirmLogout}
                     className="user-menu__item user-menu__item--danger"
                     role="menuitem"
                   >
@@ -214,6 +245,19 @@ export default function Navbar() {
               Admin
             </NavLink>
           )}
+          {isAuthenticated && !isAdmin && (
+            <>
+              <NavLink to="/dashboard" className={drawerLink} onClick={() => setDrawerOpen(false)}>
+                My dashboard
+              </NavLink>
+              <NavLink to="/orders" className={drawerLink} onClick={() => setDrawerOpen(false)}>
+                My orders
+              </NavLink>
+              <NavLink to="/notifications" className={drawerLink} onClick={() => setDrawerOpen(false)}>
+                Notification settings
+              </NavLink>
+            </>
+          )}
           <div className="navbar__drawer-sep" />
           {!isAuthenticated && (
             <>
@@ -228,7 +272,7 @@ export default function Navbar() {
           {isAuthenticated && (
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={confirmLogout}
               className="navbar__drawer-link text-red-600"
             >
               Log out
@@ -236,6 +280,15 @@ export default function Navbar() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        onConfirm={handleLogout}
+        title="Log out"
+        message="Are you sure you want to log out of your account?"
+        confirmLabel="Log out"
+      />
     </header>
   );
 }

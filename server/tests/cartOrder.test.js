@@ -30,10 +30,11 @@ jest.mock("../src/services/notificationService", () => ({
   sendOrderConfirmation: jest.fn(),
   sendOrderStatusUpdate: jest.fn(),
 }));
+const notificationService = require("../src/services/notificationService");
 
 const cartService = require("../src/services/cartService");
 const orderService = require("../src/services/orderService");
-const AppError = require("../src/utils/AppError");
+const AppError = require("../src/utils/AppError").default;
 
 function makeCart(overrides = {}) {
   const cart = {
@@ -224,6 +225,20 @@ describe("orderService.createOrder pricing", () => {
     expect(cart.save).not.toHaveBeenCalled(); // cart cleared later by webhook
   });
 
+  it("treats bKash as an online payment and defers stock decrement", async () => {
+    const cart = setupCart([{ book: populatedBooks.b1, quantity: 2 }], undefined);
+
+    const { order, isOnlinePayment } = await orderService.createOrder("u1", {
+      paymentMethod: "bkash",
+    });
+
+    expect(isOnlinePayment).toBe(true);
+    expect(order.paymentMethod).toBe("bkash");
+    expect(order.paymentStatus).toBe("pending");
+    expect(Book.updateOne).not.toHaveBeenCalled();
+    expect(cart.save).not.toHaveBeenCalled();
+  });
+
   it("rejects checkout with an empty cart", async () => {
     Cart.findOne.mockReturnValue({ populate: jest.fn(async () => makeCart()) });
     await expect(orderService.createOrder("u1", {})).rejects.toMatchObject({
@@ -337,5 +352,107 @@ describe("orderService.confirmPayment (Stripe webhook path)", () => {
       { user: "u1" },
       expect.anything()
     );
+  });
+
+  it("stores bKash payment + transaction IDs when confirming a bKash order", async () => {
+    Book.updateOne.mockResolvedValue({});
+    Book.find.mockReturnValue({ select: jest.fn().mockResolvedValue([]) });
+    const order = {
+      _id: "o1",
+      user: "u1",
+      orderNumber: "ORD-BK",
+      total: 41.79,
+      paymentStatus: "pending",
+      items: [{ book: "b1", quantity: 1 }],
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    Order.findById.mockResolvedValue(order);
+    Cart.findOneAndUpdate.mockResolvedValue({});
+
+    const result = await orderService.confirmPayment("o1", null, null, {
+      bkashPaymentId: "TR0011PAY123",
+      bkashTrxId: "BKTX456",
+    });
+
+    expect(result.paymentStatus).toBe("paid");
+    expect(result.bkashPaymentId).toBe("TR0011PAY123");
+    expect(result.bkashTrxId).toBe("BKTX456");
+    expect(Book.updateOne).toHaveBeenCalled();
+    expect(Cart.findOneAndUpdate).toHaveBeenCalled();
+  });
+});
+
+describe("orderService.updateStatus shipping tracking", () => {
+  function makeOrder(overrides = {}) {
+    const order = {
+      _id: "o1",
+      orderNumber: "ORD-20260830-ABC",
+      user: "u1",
+      status: "processing",
+      trackingNumber: null,
+      items: [],
+      save: jest.fn(function save() {
+        return Promise.resolve(order);
+      }),
+      ...overrides,
+    };
+    return order;
+  }
+
+  beforeEach(() => {
+    User.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue({ _id: "u1", name: "Ada", email: "ada@example.com" }),
+    });
+  });
+
+  it("auto-generates a tracking number and stamps shippedAt when an order ships", async () => {
+    const order = makeOrder();
+    Order.findById.mockResolvedValue(order);
+
+    const updated = await orderService.updateStatus("o1", { status: "shipped" });
+
+    expect(updated.trackingNumber).toMatch(/^BV[A-Z2-9]{12}\d{2}$/);
+    expect(updated.trackingProvider).toBe("Standard Post");
+    expect(updated.shippedAt).toBeInstanceOf(Date);
+    expect(order.save).toHaveBeenCalled();
+    expect(notificationService.sendOrderStatusUpdate).toHaveBeenCalledWith(order, "processing");
+  });
+
+  it("never overwrites an existing tracking number or shippedAt date", async () => {
+    const order = makeOrder({
+      trackingNumber: "1Z999AA10123456784",
+      shippedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    Order.findById.mockResolvedValue(order);
+
+    const updated = await orderService.updateStatus("o1", { status: "shipped" });
+
+    expect(updated.trackingNumber).toBe("1Z999AA10123456784");
+    expect(updated.shippedAt.toISOString()).toBe("2026-08-01T00:00:00.000Z");
+  });
+
+  it("keeps an admin-pasted courier number and its provider", async () => {
+    const order = makeOrder();
+    Order.findById.mockResolvedValue(order);
+
+    const updated = await orderService.updateStatus("o1", {
+      status: "shipped",
+      trackingNumber: "EC-45678-123",
+      trackingProvider: "eCourier Logistics",
+    });
+
+    expect(updated.trackingNumber).toBe("EC-45678-123");
+    expect(updated.trackingProvider).toBe("eCourier Logistics");
+    expect(updated.shippedAt).toBeInstanceOf(Date);
+  });
+
+  it("does not fabricate a tracking number before the order ships", async () => {
+    const order = makeOrder();
+    Order.findById.mockResolvedValue(order);
+
+    const updated = await orderService.updateStatus("o1", { status: "confirmed" });
+
+    expect(updated.trackingNumber).toBeNull();
+    expect(updated.shippedAt).toBeUndefined();
   });
 });
