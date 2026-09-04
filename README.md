@@ -2,7 +2,7 @@
 
 A production-grade online bookstore built on the MERN stack. Semantic search, personalized recommendations, a tool-calling AI assistant, Stripe payments, real-time notifications, and a complete admin panel — all behind a responsive Tailwind UI.
 
-**Live demo:** https://book-store-mern.vercel.app
+**Live demo:** https://book-store-mern-pearl-omega.vercel.app/
 **Repository:** https://github.com/ShahriarSajib/book-store-mern
 
 ---
