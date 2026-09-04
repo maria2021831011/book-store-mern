@@ -4,6 +4,7 @@ A production-grade online bookstore built on the MERN stack. Semantic search, pe
 
 **Live demo:** https://book-store-mern-pearl-omega.vercel.app/
 **Repository:** https://github.com/ShahriarSajib/book-store-mern
+or https://github.com/maria2021831011/book-store-mern.git
 
 ---
 
